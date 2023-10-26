@@ -1,13 +1,11 @@
-from langchain.llms import LlamaCpp
+from langchain.llms import Ollama
 from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.embeddings import HuggingFaceEmbeddings, SentenceTransformerEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.document_loaders import PyPDFLoader
-from langchain.chains import RetrievalQA
 from langchain.schema.runnable import RunnablePassthrough
 
 # Load PDF and split into page chunks.
@@ -30,14 +28,8 @@ db = FAISS.from_documents(pages, embeddings)
 callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
 # Initialize the LLM
-llm = LlamaCpp(
-    model_path="../models/llama-2-7b-chat.Q4_K_M.gguf",
-    temperature=0.0,
-    n_ctx=2048,
-    top_p=1,
-    callback_manager=callback_manager, 
-    verbose=False,
-)
+ollm = Ollama(model='llama2-7b-gguf', base_url='http://localhost:11434', callback_manager=callback_manager)
+
 
 # Provide the following system instructions to the LLM
 template = """<<SYS>>
@@ -62,15 +54,14 @@ chain_type_kwargs = {"prompt": prompt}
 
 
 question = """
-What is in table III?
+<question>
 """
 
 retriever = db.as_retriever()
 rag_chain = (
     {"context": retriever, "question": RunnablePassthrough()} 
     | prompt 
-    | llm 
+    | ollm 
 )
-
 
 rag_chain.invoke(question)
